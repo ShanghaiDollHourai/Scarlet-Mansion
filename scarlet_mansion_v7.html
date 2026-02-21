@@ -681,6 +681,7 @@ const GEOM=[
 ];
 
 let gstate='menu',frame=0,rf=0,score=0,hiScore=0,graze=0;
+let usedContinue=false,continueCount=0;
 let lives=4,bombs=3,phase=0,phaseHP=0,phaseMaxHP=0,spellActive=false;
 let flashT=0,invT=0,bossX=W/2,bossY=130,bossDX=1.2,bossWob=0;
 let spellHit=false,spellBombed=false;
@@ -1377,6 +1378,7 @@ function getPhaseHP(p){
 
 function resetGame(){
   frame=0;rf=0;score=difficulty===4?10000:0;graze=0;
+  usedContinue=false;continueCount=0;
   lives=cirnoMode?1:4;
   bombs=cirnoMode?0:3;
   bullets.forEach(b=>b.active=false);bullets=[];pshots=[];particles=[];sballs=[];fmsgs=[];books=[];hBeams=[];accessories=[];
@@ -3196,6 +3198,42 @@ function drawDlg(){
 }
 
 // ── END SCREEN ────────────────────────────────────────────────────────────
+function canContinueRun(){
+  return continueCount<1&&(gstate==='dead'||gstate==='moonout');
+}
+function continueRun(){
+  if(!canContinueRun())return;
+  usedContinue=true;continueCount++;
+  score=0;graze=0;
+  spellHit=false;spellBombed=false;freezePerfect=true;
+  P.x=W/2;P.y=H-100;
+  bullets.forEach(b=>b.active=false);
+  bullets=[];pshots=[];pendingK=[];sballs=[];particles=[];fmsgs=[];
+  bombActive=false;bombTimer=0;bombVisT=0;bombOrbs=[];sparkBeam=null;
+  tsActive=false;tsTimer=0;tsFired=[false,false,false,false];
+  invT=120;flashT=0;
+
+  if(cirnoMode){
+    lives=1;bombs=0;
+    cirnoShield=SHIELD_MAX;shieldActive=false;shieldGraze=0;shieldWasUp=false;
+    freezeActive=false;freezeTimer=0;freezeCooldown=0;
+    daiActive=false;daiTimer=0;daiMode='heal';daiAttackGraze=0;daiKunais=[];
+  } else if(sakuyaMode){
+    lives=4;bombs=3;
+    sakuyaTS=false;sakuyaTSBar=0;sakuyaTSCool=0;sakuyaTSKnives=[];
+    moonGrace=0;moonWarning=false;moonPhase=Math.max(moonPhase,.35);
+    const tsOv=document.getElementById('tsOverlay');if(tsOv)tsOv.style.opacity=0;
+    startMusic('misty');
+  } else {
+    lives=4;bombs=3;
+  }
+
+  const ov=document.getElementById('overlay');
+  ov.style.display='none';
+  const pb=document.getElementById('pauseBtn');
+  if(pb)pb.style.display='block';
+  gstate='playing';
+}
 function showEnd(){
   if(sakuyaMode){skShowEnd(gstate==='win'?'win':gstate==='moonout'?'moonout':'dead');return;}
   if(score>hiScore)hiScore=score;
@@ -3217,7 +3255,8 @@ function showEnd(){
         ${[0,1,2,3].map(i=>`<button class="diff-btn${i===difficulty?' active':''}" data-d="${i}" style="font-size:9px;padding:4px 8px">⑨ ${CIRNO_DIFF_NAMES[i]}</button>`).join('')}
       </div>
       <button id="startBtn" style="border-color:#cc0033;color:#cc0033;margin-top:4px">NORMAL MODE</button>
-      <button id="cirnoBtn">⑨ PLAY AGAIN</button>`;
+      <button id="cirnoBtn">⑨ PLAY AGAIN</button>
+      ${(!win&&canContinueRun())?'<button id="continueBtn" class="pause-btn resume" style="width:auto;padding:8px 22px;margin-top:4px;border-color:#44ccff;color:#44ccff">↻ CONTINUE (SCORE RESET)</button>':''}`;
   } else {
     const titles={remilia:win?'SCARLET DEVIL DEFEATED':'DEFEATED BY THE SCARLET DEVIL',sakuya:win?'PERFECT MAID DEFEATED':'STOPPED BY THE PERFECT MAID',patchouli:win?'THE GREAT LIBRARY CLOSED':'LOST IN THE GREAT LIBRARY',meiling:win?'THE GATE IS OPEN':'STOPPED AT THE GATE',flandre:win?'THE BASEMENT IS SILENT':'THE BASEMENT CLAIMS ANOTHER'};
     ov.innerHTML=`
@@ -3234,10 +3273,13 @@ function showEnd(){
       </div>
       <div id="diffSelect">${DIFF.map((d,i)=>`<button class="diff-btn${i===difficulty?' active':''}" data-d="${i}">${d.name}</button>`).join('')}</div>
       <button id="startBtn">RETRY</button>
-      <button id="cirnoBtn">⑨ CIRNO MODE</button>`;
+      <button id="cirnoBtn">⑨ CIRNO MODE</button>
+      ${(!win&&canContinueRun())?'<button id="continueBtn" class="pause-btn resume" style="width:auto;padding:8px 22px;margin-top:4px">↻ CONTINUE (SCORE RESET)</button>':''}`;
   }
   ov.style.display='flex';
   setupUI();
+  const continueBtn=document.getElementById('continueBtn');
+  if(continueBtn)continueBtn.onclick=()=>{initAudio();continueRun();};
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -3319,6 +3361,7 @@ function skShowEnd(reason){
       ${[0,1,2,3].map(i=>`<button class="sakuya-diff-btn" data-sd="${i}" style="width:auto;padding:4px 8px;font-size:9px;">${DIFF_NAMES[i]}</button>`).join('')}
     </div>
     <button id="sakuyaRetryBtn" style="margin-top:8px;background:none;border:2px solid #aaccff;color:#aaccff;font-family:Cinzel,serif;font-size:14px;padding:8px 24px;cursor:pointer;letter-spacing:3px;">✦ RETRY</button>
+    ${(!win&&canContinueRun())?'<button id="continueBtn" style="margin-top:4px;background:none;border:2px solid #44ccff;color:#44ccff;font-family:Cinzel,serif;font-size:12px;padding:7px 20px;cursor:pointer;letter-spacing:2px;">↻ CONTINUE (SCORE RESET)</button>':''}
     <button id="skMenuBtn" style="margin-top:4px;background:none;border:1px solid #334;color:#446;font-family:Cinzel,serif;font-size:10px;padding:4px 14px;cursor:pointer;letter-spacing:2px;">← MAIN MENU</button>
   `;
   ov.style.display='flex';
@@ -3334,6 +3377,8 @@ function skShowEnd(reason){
     document.getElementById('pauseBtn').style.display='block';
     sakuyaMode=true;cirnoMode=false;gstate='dialogue';resetGame();
   };
+  const continueBtn=document.getElementById('continueBtn');
+  if(continueBtn)continueBtn.onclick=()=>{initAudio();continueRun();};
   document.getElementById('skMenuBtn').onclick=goMainMenu;
 }
 
