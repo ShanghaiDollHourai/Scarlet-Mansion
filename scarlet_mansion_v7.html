@@ -716,6 +716,7 @@ let sakuyaMode=false;
 // Timestop player ability (distinct from boss tsActive)
 let sakuyaTS=false,sakuyaTSBar=0,sakuyaTSMax=150,sakuyaTSCool=0;
 const SAKUYA_TS_COOLMAX=360,SAKUYA_KNIFE_COST=40,SAKUYA_KNIFE_RANGE=90;
+const SAKUYA_PLAYER_SPD=5.5,SAKUYA_TS_MOVE_FACTOR=.35;
 let sakuyaTSUpgraded=false,sakuyaTSKnives=[],sakuyaTSKeyHeld=false;
 // Moon (tea deadline) system
 let moonPhase=1.0;       // 1.0=full white, 0.0=new moon = fail
@@ -3474,11 +3475,11 @@ function updateSakuyaMode(){
 
   // Player movement
   const d=SK_DIFF[difficulty];
-  const spd=sakuyaTS?d.spd*.35:d.spd;
-  if(keys.KeyA)P.x=Math.max(20,P.x-spd*2.2);
-  if(keys.KeyD)P.x=Math.min(W-20,P.x+spd*2.2);
-  if(keys.KeyW)P.y=Math.max(20,P.y-spd*2.2);
-  if(keys.KeyS)P.y=Math.min(H-30,P.y+spd*2.2);
+  const spd=sakuyaTS?SAKUYA_PLAYER_SPD*SAKUYA_TS_MOVE_FACTOR:SAKUYA_PLAYER_SPD;
+  if(keys.KeyA)P.x=Math.max(20,P.x-spd);
+  if(keys.KeyD)P.x=Math.min(W-20,P.x+spd);
+  if(keys.KeyW)P.y=Math.max(20,P.y-spd);
+  if(keys.KeyS)P.y=Math.min(H-30,P.y+spd);
 
   // Shoot
   if(keys.KeyG&&shotT<=0){
@@ -3551,13 +3552,16 @@ function updateSakuyaMode(){
   if(clockSpawnT>=CLOCK_SPAWN_RATE){
     clockSpawnT=0;
     const cx=30+Math.random()*(W-60);
-    sakuyaClocks.push({x:cx,y:-10,vy:.6+Math.random()*.4,life:1,val:50,spawned:true});
+    sakuyaClocks.push({x:cx,y:-10,vy:.6+Math.random()*.4,val:50,spawned:true});
   }
 
   // Clock collection + drift
   sakuyaClocks=sakuyaClocks.filter(c=>{
-    c.y+=c.vy;c.life-=.003;
-    if(c.y>H+20||c.life<=0)return false;
+    const frozenClock=sakuyaTS&&c.spawned;
+    if(!frozenClock)c.y+=c.vy;
+    if(!c.spawned)c.life-=.003;
+    if(c.y>H+20)return false;
+    if(!c.spawned&&c.life<=0)return false;
     const dx=c.x-P.x,dy=c.y-P.y;
     if(dx*dx+dy*dy<400){
       score+=c.val;
@@ -3758,7 +3762,7 @@ function drawSKKnives(){
 // ── CLOCKS (draw) ─────────────────────────────────────────────────────────
 function drawSKClocks(){
   sakuyaClocks.forEach(c=>{
-    ctx.save();ctx.globalAlpha=Math.min(1,c.life*3)*.9;
+    ctx.save();const life=(c.life??1);ctx.globalAlpha=Math.min(1,life*3)*.9;
     const gold=!c.spawned;// bullet-drop clocks are gold, spawned are silver
     const pulse=1+.08*Math.sin(rf*.15+c.x);
     ctx.strokeStyle=gold?'#ffd700':'#aaccff';ctx.lineWidth=1.5;
